@@ -55,12 +55,11 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 			fgets(buff, 256, stdin);
 		}while(strlen(buff) == 1 && buff[0] == '\n');
 		write(sock, buff, 256);
-		ssize_t size_of_buffer = strlen(buff);
 
 		char read_buffer[256];
-		ssize_t n = read(sock, read_buffer, 256);
+		read(sock, read_buffer, 256);
 
-		printf("%s\n", read_buffer);
+		printf("\t\t%s", read_buffer);
 	}
 	/* pour éviter les warnings de variable non utilisée */
 	return sock;

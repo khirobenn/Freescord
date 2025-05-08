@@ -24,7 +24,7 @@ int main(int argc, char *argv[]){
 		perror("socket erreur");
 		exit(1);
 	}
-	// Créer les structures
+	// Créer les structures du serveur
 	struct sockaddr_in serveur_addr = {
 		.sin_family = AF_INET,
 		.sin_port = htons(PORT_FREESCORD),
@@ -46,26 +46,8 @@ int main(int argc, char *argv[]){
 	}
 
 	for(;;){
-		struct sockaddr_in client;
-		socklen_t client_length = sizeof(client);
-		int s = accept(sock, (struct sockaddr*) &client, &client_length);
-		if(s < 0){
-			perror("client connexion erreur");
-			exit(1);
-		}
-		printf("Client connecté\n");
-		char buff[256];
-		ssize_t nb_read;
-		nb_read = read(s, buff, 256);
-		if(nb_read == 0){
-			struct sockaddr_in client;
-			socklen_t client_length = sizeof(client);
-			s = accept(sock, (struct sockaddr*) &client, &client_length);
-			continue;
-		}
-		buff[nb_read] = '\0';
-		printf("%s\n", buff);
-		write(s, buff, nb_read+1);
+		struct user *user = user_accept(sock);
+		handle_client((void *) user);
 	}
 
 	// struct sockaddr_in client_addr;
@@ -74,7 +56,25 @@ int main(int argc, char *argv[]){
 
 void *handle_client(void *clt)
 {
-	return clt;
+	if(clt == NULL) return NULL;
+	struct user * user = (struct user *) clt;
+	for(;;){
+		if(user->sock < 0){
+			perror("client connexion erreur");
+			exit(1);
+		}
+		char buff[256];
+		ssize_t nb_read = 0;
+		nb_read = read(user->sock, buff, 256);
+		if(nb_read != 0){
+			printf("%s", buff);
+			write(user->sock, buff, nb_read);
+		}
+		else{break;}
+	}
+	close(user->sock);
+	user_free(user);
+	return NULL;
 }
 
 int create_listening_sock(uint16_t port)
