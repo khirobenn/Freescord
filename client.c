@@ -8,6 +8,7 @@
 #include <poll.h>
 #include "buffer/buffer.h"
 #include "utils.h"
+#include <string.h>
 
 #define PORT_FREESCORD 4321
 
@@ -19,11 +20,48 @@ int connect_serveur_tcp(char *adresse, uint16_t port);
 
 int main(int argc, char *argv[])
 {
+	int j = connect_serveur_tcp("127.0.0.1", PORT_FREESCORD);
+	if(j == -1){
+		perror("socket erreur");
+		exit(1);
+	}
 	return 0;
 }
 
 int connect_serveur_tcp(char *adresse, uint16_t port)
 {
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if(sock < 0){
+		return -1;
+	}
+
+	struct sockaddr_in client_addr = {
+		.sin_family = AF_INET,
+		.sin_port = htons(port),
+	};
+
+	if(inet_pton(AF_INET, adresse, &client_addr.sin_addr) == -1 ){
+		return -1;
+	}
+	socklen_t client_size = sizeof(client_addr);
+
+	if(connect(sock, (struct sockaddr *) &client_addr, client_size) < 0){
+		return -1;
+	}
+
+	for(;;){
+		char buff[256];
+		do{
+			fgets(buff, 256, stdin);
+		}while(strlen(buff) == 1 && buff[0] == '\n');
+		write(sock, buff, 256);
+		ssize_t size_of_buffer = strlen(buff);
+
+		char read_buffer[256];
+		ssize_t n = read(sock, read_buffer, 256);
+
+		printf("%s\n", read_buffer);
+	}
 	/* pour éviter les warnings de variable non utilisée */
-	return *adresse + port;
+	return sock;
 }
