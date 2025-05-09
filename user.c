@@ -28,5 +28,5 @@ void user_free(struct user *user)
 {
 	free(user->address);
 	free(user);
-	printf("User disconnected !");
+	printf("User disconnected !\n");
 }
