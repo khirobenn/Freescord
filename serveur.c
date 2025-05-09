@@ -11,14 +11,24 @@
 
 #define PORT_FREESCORD 4321
 
+int tube[2];
+struct list * users;
+
 /** Gérer toutes les communications avec le client renseigné dans
  * user, qui doit être l'adresse d'une struct user */
 void *handle_client(void *user);
 /** Créer et configurer une socket d'écoute sur le port donné en argument
  * retourne le descripteur de cette socket, ou -1 en cas d'erreur */
 int create_listening_sock(uint16_t port);
+void *repeat(void *arg);
 
 int main(int argc, char *argv[]){
+	if(pipe(tube) < 0){
+		perror("pipe erreur");
+		exit(1);
+	}
+	users = list_create();
+
 	int sock = create_listening_sock(PORT_FREESCORD);
 	if(sock == -1){
 		perror("socket erreur");
@@ -45,18 +55,26 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 
+
+	pthread_t thread;
+	pthread_create(&thread, NULL, repeat, NULL);
+	pthread_detach(thread);
+
 	for(;;){
 		struct user *user = user_accept(sock);
-		handle_client((void *) user);
+		users = list_add(users, (void *) user);
+		pthread_t th;
+		pthread_create(&th, NULL, handle_client, (void *) user);
+		pthread_detach(th);
 	}
 
-	// struct sockaddr_in client_addr;
 	return 0;
 }
 
 void *handle_client(void *clt)
 {
 	if(clt == NULL) return NULL;
+	// close(tube[0]);
 	struct user * user = (struct user *) clt;
 	for(;;){
 		if(user->sock < 0){
@@ -66,12 +84,15 @@ void *handle_client(void *clt)
 		char buff[256];
 		ssize_t nb_read = 0;
 		nb_read = read(user->sock, buff, 256);
-		if(nb_read != 0){
-			printf("%s", buff);
-			write(user->sock, buff, nb_read);
+		printf("%s", buff);
+		write(tube[1], buff, nb_read);
+
+		// Si y'a 0 octets lus ça veut dire que le client a fermé.
+		if(nb_read == 0){
+			break;
 		}
-		else{break;}
 	}
+	list_remove_element(users, clt);
 	close(user->sock);
 	user_free(user);
 	return NULL;
@@ -83,4 +104,25 @@ int create_listening_sock(uint16_t port)
 	if(sock < 0) return -1;
 
 	return sock;
+}
+
+void *repeat(void *arg){
+	for(;;){
+		char buff[256];
+		buff[0] = '\0';
+		ssize_t n;
+		if(!list_is_empty(users) && (n = read(tube[0], buff, 256)) > 0){
+			printf("%s", buff);
+			struct user *user;
+			size_t i = 0;
+			ssize_t length = list_length(users);
+			do{
+				user = (struct user *) list_get(users, i++);
+				write(user->sock, buff, n);
+			}while(user != NULL && i < length);
+		}
+		else{
+			continue;
+		}
+	}
 }

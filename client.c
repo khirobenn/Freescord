@@ -52,9 +52,11 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 	for(;;){
 		char buff[256];
 		do{
+			// fgets met bel et bien le caractère '\0' à la fin de la chaîne de caractères
+			// donc il suffit après de faire un write strlen(buff) + 1 pour inclure '\0'
 			fgets(buff, 256, stdin);
 		}while(strlen(buff) == 1 && buff[0] == '\n');
-		write(sock, buff, 256);
+		write(sock, buff, strlen(buff) + 1);
 
 		char read_buffer[256];
 		read(sock, read_buffer, 256);
