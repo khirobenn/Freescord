@@ -84,12 +84,12 @@ void *handle_client(void *clt)
 		char buff[256];
 		ssize_t nb_read = 0;
 		nb_read = read(user->sock, buff, 256);
-		printf("%s", buff);
-		write(tube[1], buff, nb_read);
-
+		
 		// Si y'a 0 octets lus ça veut dire que le client a fermé.
 		if(nb_read == 0){
 			break;
+		}else{
+			write(tube[1], buff, nb_read);
 		}
 	}
 	list_remove_element(users, clt);

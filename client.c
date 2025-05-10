@@ -49,19 +49,25 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 		return -1;
 	}
 
+	struct pollfd mes_poll[2] = {
+		{.fd = 0, .events = POLLIN},
+		{.fd = sock, .events = POLLIN}
+	};
+
 	for(;;){
 		char buff[256];
-		do{
-			// fgets met bel et bien le caractère '\0' à la fin de la chaîne de caractères
-			// donc il suffit après de faire un write strlen(buff) + 1 pour inclure '\0'
-			fgets(buff, 256, stdin);
-		}while(strlen(buff) == 1 && buff[0] == '\n');
-		write(sock, buff, strlen(buff) + 1);
 
-		char read_buffer[256];
-		read(sock, read_buffer, 256);
-
-		printf("\t\t%s", read_buffer);
+		poll(mes_poll, 2, -1);
+		if(mes_poll[0].revents & (POLLIN | POLLHUP)){
+			ssize_t n = read(0, buff, 256);
+			buff[n] = '\0';
+			write(sock, buff, 256);
+		}
+		else if(mes_poll[1].revents & (POLLIN | POLLHUP)){
+			read(sock, buff, 256);
+			printf("%s", buff);
+			// write(1, buff, 256);
+		}	
 	}
 	/* pour éviter les warnings de variable non utilisée */
 	return sock;
