@@ -1,3 +1,7 @@
+/* Khireddine BENMEZIANE 12308874
+Je déclare qu'il s'agit de mon propre travail.
+Ce travail a été réalisé intégralement par un être humain. */
+
 #include <unistd.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -76,9 +80,8 @@ int main(int argc, char *argv[]){
 		char ascii[4096];
 		ssize_t n = fread(ascii, 1, 4096, f);
 		fclose(f);
-		ascii[n] = '\n'; // Je fais ça pour l'afficher correctement dans le terminal du client avec printf (printf est line-buffered)
-		ascii[n+1] = '\0';
-		write(user->sock, ascii, 4096);
+		ascii[n] = '\n';
+		write(user->sock, ascii, n+1);
 		users = list_add(users, (void *) user);
 		pthread_t th;
 		pthread_create(&th, NULL, handle_client, (void *) user);
@@ -130,7 +133,7 @@ void *repeat(void *arg){
 		buff[0] = '\0';
 		ssize_t n;
 		if(!list_is_empty(users) && (n = read(tube[0], buff, 4096)) > 0){
-			printf("%s", buff);
+			write(1, buff, n);
 			struct user *user;
 			size_t i = 0;
 			ssize_t length = list_length(users);

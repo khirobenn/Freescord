@@ -61,12 +61,11 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 		poll(mes_poll, 2, -1);
 		if(mes_poll[0].revents & (POLLIN | POLLHUP)){
 			ssize_t n = read(0, buff, BUFF_SIZE);
-			buff[n] = '\0';
-			write(sock, buff, BUFF_SIZE);
+			write(sock, buff, n);
 		}
 		else if(mes_poll[1].revents & (POLLIN | POLLHUP)){
-			read(sock, buff, BUFF_SIZE);
-			printf("%s", buff);
+			ssize_t n = read(sock, buff, BUFF_SIZE);
+			write(1, buff, n);
 		}	
 	}
 	/* pour éviter les warnings de variable non utilisée */

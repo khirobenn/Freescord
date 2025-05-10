@@ -1,7 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H value
 
-/* Changer une ligne se terminant par CRLF en une ligne se terminant par LF.
+/* Changer une ligne se terminant par CRLF en une ligne se terminant par LF.user
  * La ligne doit être terminée par un carcactère nul.
  * Retourne la ligne modifiée ou NULL en cas d'erreur. */
 char *crlf_to_lf(char *line_with_crlf);
