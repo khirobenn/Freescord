@@ -8,8 +8,11 @@
 #include <string.h>
 #include "list/list.h"
 #include "user.h"
+#include <time.h>
 
 #define PORT_FREESCORD 4321
+
+char *ascii_art = {};
 
 int tube[2];
 struct list * users;
@@ -55,6 +58,7 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 
+	srand(time(NULL));
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, repeat, NULL);
@@ -62,6 +66,19 @@ int main(int argc, char *argv[]){
 
 	for(;;){
 		struct user *user = user_accept(sock);
+		int a = rand()%11 + 1;
+		char filename[50];
+		sprintf(filename, "ascii_art/ascii%d", a);
+		FILE *f = fopen(filename, "r");
+		if(f == NULL){
+			exit(1);
+		}
+		char ascii[4096];
+		ssize_t n = fread(ascii, 1, 4096, f);
+		fclose(f);
+		ascii[n] = '\n'; // Je fais ça pour l'afficher correctement dans le terminal du client avec printf (printf est line-buffered)
+		ascii[n+1] = '\0';
+		write(user->sock, ascii, 4096);
 		users = list_add(users, (void *) user);
 		pthread_t th;
 		pthread_create(&th, NULL, handle_client, (void *) user);
@@ -81,9 +98,9 @@ void *handle_client(void *clt)
 			perror("client connexion erreur");
 			exit(1);
 		}
-		char buff[256];
+		char buff[4096];
 		ssize_t nb_read = 0;
-		nb_read = read(user->sock, buff, 256);
+		nb_read = read(user->sock, buff, 4096);
 		
 		// Si y'a 0 octets lus ça veut dire que le client a fermé.
 		if(nb_read == 0){
@@ -91,6 +108,7 @@ void *handle_client(void *clt)
 		}else{
 			write(tube[1], buff, nb_read);
 		}
+		memset(buff, 0, 4096); // Nettoyer le buffer
 	}
 	list_remove_element(users, clt);
 	close(user->sock);
@@ -108,10 +126,10 @@ int create_listening_sock(uint16_t port)
 
 void *repeat(void *arg){
 	for(;;){
-		char buff[256];
+		char buff[4096];
 		buff[0] = '\0';
 		ssize_t n;
-		if(!list_is_empty(users) && (n = read(tube[0], buff, 256)) > 0){
+		if(!list_is_empty(users) && (n = read(tube[0], buff, 4096)) > 0){
 			printf("%s", buff);
 			struct user *user;
 			size_t i = 0;
@@ -120,6 +138,8 @@ void *repeat(void *arg){
 				user = (struct user *) list_get(users, i++);
 				write(user->sock, buff, n);
 			}while(user != NULL && i < length);
+
+			memset(buff, 0, 4096); // Nettoyer le buffer
 		}
 		else{
 			continue;

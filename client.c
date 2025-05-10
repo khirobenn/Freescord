@@ -11,6 +11,7 @@
 #include <string.h>
 
 #define PORT_FREESCORD 4321
+#define BUFF_SIZE 4096
 
 /** se connecter au serveur TCP d'adresse donnée en argument sous forme de
  * chaîne de caractère et au port donné en argument
@@ -55,18 +56,17 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 	};
 
 	for(;;){
-		char buff[256];
-
+		char buff[BUFF_SIZE];
+		memset(buff, 0, BUFF_SIZE); // Nettoyer le buffer
 		poll(mes_poll, 2, -1);
 		if(mes_poll[0].revents & (POLLIN | POLLHUP)){
-			ssize_t n = read(0, buff, 256);
+			ssize_t n = read(0, buff, BUFF_SIZE);
 			buff[n] = '\0';
-			write(sock, buff, 256);
+			write(sock, buff, BUFF_SIZE);
 		}
 		else if(mes_poll[1].revents & (POLLIN | POLLHUP)){
-			read(sock, buff, 256);
+			read(sock, buff, BUFF_SIZE);
 			printf("%s", buff);
-			// write(1, buff, 256);
 		}	
 	}
 	/* pour éviter les warnings de variable non utilisée */
