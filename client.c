@@ -11,7 +11,7 @@
 #include <string.h>
 
 #define PORT_FREESCORD 4321
-#define BUFF_SIZE 4096
+#define BUFF_SIZE 512
 
 /** se connecter au serveur TCP d'adresse donnée en argument sous forme de
  * chaîne de caractère et au port donné en argument
@@ -54,6 +54,9 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 		{.fd = 0, .events = POLLIN},
 		{.fd = sock, .events = POLLIN}
 	};
+
+	buffer * buf = buff_create(0, BUFF_SIZE);
+	buffer * buf2 = buff_create(sock, BUFF_SIZE);
 
 	for(;;){
 		char buff[BUFF_SIZE];

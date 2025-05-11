@@ -15,6 +15,7 @@ Ce travail a été réalisé intégralement par un être humain. */
 #include <time.h>
 
 #define PORT_FREESCORD 4321
+#define BUFF_SIZE 512
 
 char *ascii_art = {};
 
@@ -70,18 +71,7 @@ int main(int argc, char *argv[]){
 
 	for(;;){
 		struct user *user = user_accept(sock);
-		int a = rand()%11 + 1;
-		char filename[50];
-		sprintf(filename, "ascii_art/ascii%d", a);
-		FILE *f = fopen(filename, "r");
-		if(f == NULL){
-			exit(1);
-		}
-		char ascii[4096];
-		ssize_t n = fread(ascii, 1, 4096, f);
-		fclose(f);
-		ascii[n] = '\n';
-		write(user->sock, ascii, n+1);
+		// ajout du client vers la liste des clients
 		users = list_add(users, (void *) user);
 		pthread_t th;
 		pthread_create(&th, NULL, handle_client, (void *) user);
@@ -96,14 +86,34 @@ void *handle_client(void *clt)
 	if(clt == NULL) return NULL;
 	// close(tube[0]);
 	struct user * user = (struct user *) clt;
+
+	if(user->sock < 0){
+		perror("connexion au client impossible");
+		return;
+	}
+
+	// afficher l'ascii art au client
+	int a = rand()%11 + 1;
+	char filename[30];
+	sprintf(filename, "ascii_art/ascii%d", a);
+	FILE *f = fopen(filename, "r");
+	if(f == NULL){
+		exit(1);
+	}
+
+	char ascii[BUFF_SIZE];
+	ssize_t n;
+	while((n = fread(ascii, 1, BUFF_SIZE, f)) > 0){
+		write(user->sock, ascii, n);
+	};
+	fclose(f);
+	write(user->sock, "\n", 1);
+	// -----------------------------------
+
 	for(;;){
-		if(user->sock < 0){
-			perror("client connexion erreur");
-			exit(1);
-		}
-		char buff[4096];
+		char buff[BUFF_SIZE];
 		ssize_t nb_read = 0;
-		nb_read = read(user->sock, buff, 4096);
+		nb_read = read(user->sock, buff, BUFF_SIZE);
 		
 		// Si y'a 0 octets lus ça veut dire que le client a fermé.
 		if(nb_read == 0){
@@ -111,7 +121,7 @@ void *handle_client(void *clt)
 		}else{
 			write(tube[1], buff, nb_read);
 		}
-		memset(buff, 0, 4096); // Nettoyer le buffer
+		memset(buff, 0, BUFF_SIZE); // Nettoyer le buffer
 	}
 	list_remove_element(users, clt);
 	close(user->sock);
@@ -129,10 +139,10 @@ int create_listening_sock(uint16_t port)
 
 void *repeat(void *arg){
 	for(;;){
-		char buff[4096];
+		char buff[BUFF_SIZE];
 		buff[0] = '\0';
 		ssize_t n;
-		if(!list_is_empty(users) && (n = read(tube[0], buff, 4096)) > 0){
+		if(!list_is_empty(users) && (n = read(tube[0], buff, BUFF_SIZE)) > 0){
 			write(1, buff, n);
 			struct user *user;
 			size_t i = 0;
@@ -142,7 +152,7 @@ void *repeat(void *arg){
 				write(user->sock, buff, n);
 			}while(user != NULL && i < length);
 
-			memset(buff, 0, 4096); // Nettoyer le buffer
+			memset(buff, 0, BUFF_SIZE); // Nettoyer le buffer
 		}
 		else{
 			continue;
