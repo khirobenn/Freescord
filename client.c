@@ -11,7 +11,7 @@
 #include <string.h>
 
 #define PORT_FREESCORD 4321
-#define BUFF_SIZE 512
+#define BUFF_SIZE 4096
 
 /** se connecter au serveur TCP d'adresse donnée en argument sous forme de
  * chaîne de caractère et au port donné en argument
@@ -21,7 +21,7 @@ int connect_serveur_tcp(char *adresse, uint16_t port);
 
 int main(int argc, char *argv[])
 {
-	int j = connect_serveur_tcp("127.0.0.1", PORT_FREESCORD);
+	int j = connect_serveur_tcp(argv[1], PORT_FREESCORD);
 	if(j == -1){
 		perror("socket erreur");
 		exit(1);
@@ -57,20 +57,74 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 
 	buffer * buf = buff_create(0, BUFF_SIZE);
 	buffer * buf2 = buff_create(sock, BUFF_SIZE);
+	char dest[BUFF_SIZE];
+	char *tmp;
+
+	// Pour écrire le code ascii
+	size_t n = read(sock, dest, BUFF_SIZE);
+	write(1, dest, n);
+
+	// Récupérer \n
+	read(sock, dest, 1);
+	write(1, dest, 1);
+
+	do{
+		// Saisir le nickname et pseudonyme
+		n = read(sock, dest, BUFF_SIZE);
+		write(1, dest, n);
+
+		// saisir le nickname et pseudonyme
+		n = read(0, dest, BUFF_SIZE);
+		write(sock, dest, n);
+
+		// Lire la réponse du serveur
+		n = read(sock, dest, 1);
+		switch (dest[0]){
+			case '0':
+				printf("Nickname et pseudonyme validés.\n");
+				printf("Vous pouvez commencer à chatter!\n");
+				break;
+			case '1':
+				printf("Nickname déjà pris par un autre utilisateur, veuillez choisir un autre.\n");
+				break;
+			case '2':
+				printf("Nickname ou pseudonyme inavalide, veuillez resaisir.\n");
+				break;
+			case '3':
+				printf("Erreur syntaxe, veuillez saisir vos identifians comme suit : nickname ton_nickname ton_pseudonyme\n");
+				break;
+		}
+	}while(dest[0] != '0');
 
 	for(;;){
-		char buff[BUFF_SIZE];
-		memset(buff, 0, BUFF_SIZE); // Nettoyer le buffer
 		poll(mes_poll, 2, -1);
 		if(mes_poll[0].revents & (POLLIN | POLLHUP)){
-			ssize_t n = read(0, buff, BUFF_SIZE);
-			write(sock, buff, n);
+			tmp = buff_fgets(buf, dest, BUFF_SIZE-1);
+			if(tmp != NULL){
+				size_t i = 0;
+				while(dest[i] != '\n'){
+					i++;
+				}
+				write(sock, dest, i+1);
+			}
+			else{
+				break;
+			}
 		}
 		else if(mes_poll[1].revents & (POLLIN | POLLHUP)){
-			ssize_t n = read(sock, buff, BUFF_SIZE);
-			write(1, buff, n);
+			tmp = buff_fgets(buf2, dest, BUFF_SIZE-1);
+			if(tmp != NULL){
+				size_t i = 0;
+				while(dest[i] != '\n'){
+					i++;
+				}
+				write(1, dest, i+1);
+			}
 		}	
 	}
+
+	buff_free(buf);
+	buff_free(buf2);
 	/* pour éviter les warnings de variable non utilisée */
 	return sock;
 }

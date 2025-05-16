@@ -15,18 +15,23 @@ struct user *user_accept(int sl)
 	if((sock = accept(sl, (struct sockaddr *) client_addr, &client_addr_length)) < 0){
 		return NULL;
 	}
-	struct user * user = malloc(sizeof(user));
+	struct user * user = malloc(sizeof(struct user));
 	user->address = (struct sockaddr *) client_addr;
 	user->addr_len = client_addr_length;
 	user->sock = sock;
-	printf("User connected successfully !\n");
+	user->nickname[0] = '0';
+	user->nickname[1] = '\0';
 	return user;
 }
 
 /** libérer toute la mémoire associée à user */
 void user_free(struct user *user)
 {
+	char nickname[NAME_MAX];
+	strcpy(nickname, user->nickname);
 	free(user->address);
 	free(user);
-	printf("User disconnected !\n");
+	if(strcmp(nickname, "0")){
+		printf("%s disconnected !\n", nickname);
+	}
 }

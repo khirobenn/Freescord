@@ -7,13 +7,13 @@
 
 buffer *buff_create(int fd, size_t buffsz)
 {	
-	buffer * buffer = malloc(sizeof(buffer));
-	buffer->buff = malloc(buffsz*sizeof(char));
-	buffer->fd = fd;
-	buffer->index = 1;
-	buffer->size_read = 1;
-	buffer->size = buffsz;
-	return buffer;
+	buffer * buff = malloc(sizeof(buffer));
+	buff->buff = malloc(buffsz*sizeof(char));
+	buff->fd = fd;
+	buff->index = 1;
+	buff->size_read = 1;
+	buff->size = buffsz;
+	return buff;
 }
 
 int buff_getc(buffer *b)

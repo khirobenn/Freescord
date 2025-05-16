@@ -15,13 +15,16 @@ Ce travail a été réalisé intégralement par un être humain. */
 #include <time.h>
 
 #define PORT_FREESCORD 4321
-#define BUFF_SIZE 512
+#define BUFF_SIZE 4096
+#define NAME_MAX 16
 
+pthread_mutex_t mutex;
 char *ascii_art = {};
 
 int tube[2];
 struct list * users;
 
+int is_names_ok(char nickname[], char pseudonyme[], char buf[], size_t buff_size);
 /** Gérer toutes les communications avec le client renseigné dans
  * user, qui doit être l'adresse d'une struct user */
 void *handle_client(void *user);
@@ -64,6 +67,7 @@ int main(int argc, char *argv[]){
 	}
 
 	srand(time(NULL));
+	pthread_mutex_init(&mutex, NULL);
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, repeat, NULL);
@@ -71,12 +75,70 @@ int main(int argc, char *argv[]){
 
 	for(;;){
 		struct user *user = user_accept(sock);
-		// ajout du client vers la liste des clients
-		users = list_add(users, (void *) user);
 		pthread_t th;
 		pthread_create(&th, NULL, handle_client, (void *) user);
 		pthread_detach(th);
 	}
+
+	return 0;
+}
+
+// Vérifiez la chaîne de caractères entrées par le client si elle est sous la forme "nickname %s %s".
+// Retourne soit 0, 2 ou 3 (les cas du sujet)
+// Pour le cas 1 on le testera dans une autre fonction
+int is_names_ok(char nickname[], char pseudonyme[], char buf[], size_t buff_size){
+	// Checker la chaine nickname au début de buf
+	char nickname_check[9] = "init"; // Je l'initialise juste pour que valgrind ne donne pas de warning
+	int i = 0;
+	while(i < buff_size && buf[i] != ' '){
+		if(i >= NAME_MAX || i >= 8) return 3;
+		nickname_check[i] = buf[i];
+		i++;
+	}
+	nickname[i] = '\0';
+	if(strcmp(nickname_check, "nickname")) return 3;
+	i++;
+	int j = 0;
+	
+	while(i < buff_size && buf[i] != ' '){
+		if(j >= NAME_MAX) return 2;
+		else if(buf[i] == ':') return 2;
+		nickname[j] = buf[i];
+		i++;
+		j++;
+	}
+	if(i == buff_size || buf[i] == '\n') return 2;
+
+	nickname[j] = '\0';
+	i++;
+	j = 0;
+	while(i < buff_size && buf[i] != ' '){
+		if(j >= NAME_MAX) return 2;
+		else if(buf[i] == ':') return 2;
+		else if(buf[i] == '\n') {
+			j++;
+			break;
+		}
+		pseudonyme[j] = buf[i];
+		i++;
+		j++;
+	}
+	pseudonyme[j] = '\0';
+	return 0;
+}
+
+// Vérifier si le nickname est déjà présent chez l'un des utilisateurs.
+// Retourne 1 si le nickname est présent, 0 sinon.
+int is_nickname_in_other_users(char nickname[], struct list * users){
+	if(list_is_empty(users)) return 0;
+
+	struct user *user;
+	size_t i = 0;
+	ssize_t length = list_length(users);
+	do{
+		user = (struct user *) list_get(users, i++);
+		if(!strcmp(user->nickname, nickname)) return 1;
+	}while(user != NULL && i < length);
 
 	return 0;
 }
@@ -89,7 +151,7 @@ void *handle_client(void *clt)
 
 	if(user->sock < 0){
 		perror("connexion au client impossible");
-		return;
+		return NULL;
 	}
 
 	// afficher l'ascii art au client
@@ -110,6 +172,53 @@ void *handle_client(void *clt)
 	write(user->sock, "\n", 1);
 	// -----------------------------------
 
+	// Nickname et pseudonyme
+	char nickname[NAME_MAX];
+	char pseudonyme[NAME_MAX];
+	for(;;){
+		char a[] = "Entrez un nickname et un pseudonyme :\n";
+		write(user->sock, a, sizeof(a)-1);
+		char b[BUFF_SIZE];
+		size_t n = read(user->sock, b, BUFF_SIZE);
+		// Le user a fermé 
+		if(n == 0){
+			close(user->sock);
+			user_free(user);
+			return NULL;	
+		}
+		int i = is_names_ok(nickname, pseudonyme, b, n);
+		if(i == 0){
+			int is_in_others;
+			pthread_mutex_lock(&mutex);
+			is_in_others = is_nickname_in_other_users(nickname, users);
+			pthread_mutex_unlock(&mutex);
+
+			if(is_in_others){
+				write(user->sock, "1", 1);
+			}
+			else{
+				write(user->sock, "0", 1);
+				break;
+			}
+		}
+		else if(i == 2){
+			write(user->sock, "2", 1);
+		}
+		else if(i == 3){
+			write(user->sock, "3", 1);
+		}
+	}
+
+	// Nickname et pseudonyme validés
+	strcpy(user->nickname, nickname);
+	strcpy(user->pseudonyme, pseudonyme);
+
+	pthread_mutex_lock(&mutex);
+	users = list_add(users, (void *) user);
+	pthread_mutex_unlock(&mutex);
+
+	printf("%s connected successfully !\n", user->nickname);
+
 	for(;;){
 		char buff[BUFF_SIZE];
 		ssize_t nb_read = 0;
@@ -119,11 +228,16 @@ void *handle_client(void *clt)
 		if(nb_read == 0){
 			break;
 		}else{
+			// écrire le pseudonyme
+			write(tube[1], user->nickname, strlen(user->nickname));
+			write(tube[1], " : ", 3);
 			write(tube[1], buff, nb_read);
 		}
 		memset(buff, 0, BUFF_SIZE); // Nettoyer le buffer
 	}
+	pthread_mutex_lock(&mutex);
 	list_remove_element(users, clt);
+	pthread_mutex_unlock(&mutex);
 	close(user->sock);
 	user_free(user);
 	return NULL;
@@ -144,6 +258,7 @@ void *repeat(void *arg){
 		ssize_t n;
 		if(!list_is_empty(users) && (n = read(tube[0], buff, BUFF_SIZE)) > 0){
 			write(1, buff, n);
+			pthread_mutex_lock(&mutex);
 			struct user *user;
 			size_t i = 0;
 			ssize_t length = list_length(users);
@@ -151,7 +266,7 @@ void *repeat(void *arg){
 				user = (struct user *) list_get(users, i++);
 				write(user->sock, buff, n);
 			}while(user != NULL && i < length);
-
+			pthread_mutex_unlock(&mutex);
 			memset(buff, 0, BUFF_SIZE); // Nettoyer le buffer
 		}
 		else{

@@ -3,11 +3,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#define NAME_MAX 16
+
 struct user {
 	struct sockaddr *address;
 	socklen_t addr_len;
-	int sock;
-	/* autres champs éventuels */
+	size_t sock;
+	char nickname[NAME_MAX];
+	char pseudonyme[NAME_MAX];
 };
 
 struct user *user_accept(int sl);
