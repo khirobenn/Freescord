@@ -21,6 +21,10 @@ int connect_serveur_tcp(char *adresse, uint16_t port);
 
 int main(int argc, char *argv[])
 {
+	if(argc < 2){
+		printf("Usage : ./clt adresse_ip");
+		exit(1);
+	}
 	int j = connect_serveur_tcp(argv[1], PORT_FREESCORD);
 	if(j == -1){
 		perror("socket erreur");
@@ -41,7 +45,7 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 		.sin_port = htons(port),
 	};
 
-	if(inet_pton(AF_INET, adresse, &client_addr.sin_addr) == -1 ){
+	if(inet_pton(AF_INET, adresse, &client_addr.sin_addr) < 0 ){
 		return -1;
 	}
 	socklen_t client_size = sizeof(client_addr);
@@ -119,6 +123,10 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 					i++;
 				}
 				write(1, dest, i+1);
+			}
+			else{
+				printf("Serveur fermé :( \n");
+				break;
 			}
 		}	
 	}

@@ -13,16 +13,18 @@ Ce travail a été réalisé intégralement par un être humain. */
 #include "list/list.h"
 #include "user.h"
 #include <time.h>
+#include <signal.h>
 
 #define PORT_FREESCORD 4321
 #define BUFF_SIZE 4096
 #define NAME_MAX 16
 
 pthread_mutex_t mutex;
-char *ascii_art = {};
+char *ascii_art;
 
 int tube[2];
 struct list * users;
+int serveur_socket_global; // On l'utilisera pour fermer la socket du serveur lors de CTRL + C
 
 int is_names_ok(char nickname[], char pseudonyme[], char buf[], size_t buff_size);
 /** Gérer toutes les communications avec le client renseigné dans
@@ -32,6 +34,9 @@ void *handle_client(void *user);
  * retourne le descripteur de cette socket, ou -1 en cas d'erreur */
 int create_listening_sock(uint16_t port);
 void *repeat(void *arg);
+void free_user (void * clt);
+void ctrl_c_handler(int signal);
+
 
 int main(int argc, char *argv[]){
 	if(pipe(tube) < 0){
@@ -41,6 +46,7 @@ int main(int argc, char *argv[]){
 	users = list_create();
 
 	int sock = create_listening_sock(PORT_FREESCORD);
+	serveur_socket_global = sock;
 	if(sock == -1){
 		perror("socket erreur");
 		exit(1);
@@ -72,6 +78,10 @@ int main(int argc, char *argv[]){
 	pthread_t thread;
 	pthread_create(&thread, NULL, repeat, NULL);
 	pthread_detach(thread);
+
+	// Pour appeler la fonction ctrl_c_handler lors du CTRL+C
+	// Source : https://www.geeksforgeeks.org/write-a-c-program-that-doesnt-terminate-when-ctrlc-is-pressed/
+	signal(SIGINT, ctrl_c_handler);
 
 	for(;;){
 		struct user *user = user_accept(sock);
@@ -273,4 +283,25 @@ void *repeat(void *arg){
 			continue;
 		}
 	}
+}
+
+// Une fonction temporaire pour la passer dans list_free pour libérer chaque noeud.
+void free_user (void * clt){
+	struct user * u = (struct user *) clt;
+	close(u->sock);
+	user_free(u);
+}
+
+// Cette fonction va gérer l'événement du CTRL+C
+// Source : https://www.geeksforgeeks.org/write-a-c-program-that-doesnt-terminate-when-ctrlc-is-pressed/
+void ctrl_c_handler(int signal){
+	// On ferme le serveur
+	close(serveur_socket_global);
+	printf("\n");
+	// On libère la mémoire de la liste des clients
+	pthread_mutex_lock(&mutex);
+	list_free(users, free_user);
+	pthread_mutex_unlock(&mutex);
+	pthread_mutex_destroy(&mutex);
+	exit(0);
 }
