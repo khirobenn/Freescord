@@ -1,1 +1,0 @@
-Tout les ascii-art, je les ai pris du site https://emojicombos.com/text-art
