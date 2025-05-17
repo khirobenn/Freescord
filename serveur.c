@@ -262,9 +262,10 @@ void *handle_client(void *clt)
 						if(u != user){
 							write(user->sock, "- ", 2);
 							write(user->sock, u->nickname, strlen(u->nickname));
-							write(user->sock, " is connected\n", strlen(" is connected\n"));
+							write(user->sock, " is connected. ", strlen(" is connected. "));
 						}
 					}while(u != NULL && i < length);
+					write(user->sock, "\n", 1);
 					pthread_mutex_unlock(&mutex);
 				}
 				else{
