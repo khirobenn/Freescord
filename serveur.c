@@ -163,7 +163,7 @@ void *handle_client(void *clt)
 	}
 
 	// afficher l'ascii art au client
-	int a = rand()%9 + 1;
+	int a = rand()%6 + 1;
 	char filename[30];
 	sprintf(filename, "ascii_art/ascii%d", a);
 	FILE *f = fopen(filename, "r");
