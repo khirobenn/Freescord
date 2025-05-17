@@ -32,6 +32,6 @@ void user_free(struct user *user)
 	free(user->address);
 	free(user);
 	if(strcmp(nickname, "0")){
-		printf("%s disconnected !\n", nickname);
+		printf("- %s disconnected !\n", nickname);
 	}
 }

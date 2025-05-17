@@ -62,24 +62,23 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 	buffer * buf = buff_create(0, BUFF_SIZE);
 	buffer * buf2 = buff_create(sock, BUFF_SIZE);
 	char dest[BUFF_SIZE];
-	char *tmp;
 
 	// Pour écrire le code ascii
 	size_t n = read(sock, dest, BUFF_SIZE);
 	write(1, dest, n);
 
-	// Récupérer \n
-	read(sock, dest, 1);
-	write(1, dest, 1);
-
+	
 	do{
+		memset(dest, 0, BUFF_SIZE); // Nettoyer le buffer
 		// Saisir le nickname et pseudonyme
 		n = read(sock, dest, BUFF_SIZE);
 		write(1, dest, n);
+		memset(dest, 0, BUFF_SIZE); // Nettoyer le buffer
 
 		// saisir le nickname et pseudonyme
 		n = read(0, dest, BUFF_SIZE);
 		write(sock, dest, n);
+		memset(dest, 0, BUFF_SIZE); // Nettoyer le buffer
 
 		// Lire la réponse du serveur
 		n = read(sock, dest, 1);
@@ -99,7 +98,8 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 				break;
 		}
 	}while(dest[0] != '0');
-
+	memset(dest, 0, BUFF_SIZE); // Nettoyer le buffer
+	char *tmp;
 	for(;;){
 		poll(mes_poll, 2, -1);
 		if(mes_poll[0].revents & (POLLIN | POLLHUP)){
@@ -133,6 +133,5 @@ int connect_serveur_tcp(char *adresse, uint16_t port)
 
 	buff_free(buf);
 	buff_free(buf2);
-	/* pour éviter les warnings de variable non utilisée */
 	return sock;
 }

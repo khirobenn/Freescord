@@ -35,9 +35,6 @@
 
 typedef struct buffer {
     int fd;
-    // Je tiens juste à préciser qu'il y'a un truc bizare qui s'est passé ici
-    // lorsque je change le type de size_read et index en size_t, y'a une erreur qui se passe lors 
-    // de la libération de la mémoire, j'ai cherché partout aucune réponse
 	int size_read; // Taille lu par read
     int index; // index courant, si c'est égal à size_read on devrait appeler read sur fd
     int size; // taille de mon buffer

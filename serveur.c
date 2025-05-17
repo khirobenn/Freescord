@@ -20,8 +20,6 @@ Ce travail a été réalisé intégralement par un être humain. */
 #define NAME_MAX 16
 
 pthread_mutex_t mutex;
-char *ascii_art;
-
 int tube[2];
 struct list * users;
 int serveur_socket_global; // On l'utilisera pour fermer la socket du serveur lors de CTRL + C
@@ -179,19 +177,18 @@ void *handle_client(void *clt)
 		write(user->sock, ascii, n);
 	};
 	fclose(f);
-	write(user->sock, "\n", 1);
 	// -----------------------------------
 
 	// Nickname et pseudonyme
 	char nickname[NAME_MAX];
 	char pseudonyme[NAME_MAX];
 	for(;;){
-		char a[] = "Entrez un nickname et un pseudonyme :\n";
-		write(user->sock, a, sizeof(a)-1);
+		char a[] = "\nEntrez un nickname et un pseudonyme :\n";
+		write(user->sock, a, strlen(a));
 		char b[BUFF_SIZE];
 		size_t n = read(user->sock, b, BUFF_SIZE);
 		// Le user a fermé 
-		if(n == 0){
+		if(n <= 0){
 			close(user->sock);
 			user_free(user);
 			return NULL;	
@@ -227,7 +224,7 @@ void *handle_client(void *clt)
 	users = list_add(users, (void *) user);
 	pthread_mutex_unlock(&mutex);
 
-	printf("%s connected successfully !\n", user->nickname);
+	printf("- %s connected successfully !\n", user->nickname);
 
 	for(;;){
 		char buff[BUFF_SIZE];
@@ -238,10 +235,44 @@ void *handle_client(void *clt)
 		if(nb_read == 0){
 			break;
 		}else{
-			// écrire le pseudonyme
-			write(tube[1], user->nickname, strlen(user->nickname));
-			write(tube[1], " : ", 3);
-			write(tube[1], buff, nb_read);
+			// Tester si la chaine commence par 'msg'
+			char commande[20];
+			int i = strlen("msg");
+			strncpy(commande, buff, i);
+			commande[i] = '\0';
+			if(!strcmp(commande, "msg")){
+				write(tube[1], "msg ", i+1);
+				// écrire le nickname
+				write(tube[1], user->nickname, strlen(user->nickname));
+				write(tube[1], " : ", 3);
+				write(tube[1], buff+i+1, nb_read-i-1);
+			}
+			// Si la chaine ne commence pas 'msg', on teste alors pour 'list'
+			else{
+				i = strlen("list");
+				strncpy(commande, buff, i);
+				commande[i] = '\0';
+				if(!strcmp(commande, "list")){
+					pthread_mutex_lock(&mutex);
+					struct user *u;
+					size_t i = 0;
+					ssize_t length = list_length(users);
+					do{
+						u = (struct user *) list_get(users, i++);
+						if(u != user){
+							write(user->sock, "- ", 2);
+							write(user->sock, u->nickname, strlen(u->nickname));
+							write(user->sock, " is connected\n", strlen(" is connected\n"));
+						}
+					}while(u != NULL && i < length);
+					pthread_mutex_unlock(&mutex);
+				}
+				else{
+					// La chaine ne commence ni par 'msg', ni par 'list' alors on envoie une erreur au client
+					char warning[] = "Veuillez utiliser `msg` avant le message ou `list` pour lister les utilisateur connectés.\n";
+					write(user->sock, warning, strlen(warning));
+				}
+			}
 		}
 		memset(buff, 0, BUFF_SIZE); // Nettoyer le buffer
 	}

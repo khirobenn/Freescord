@@ -8,7 +8,7 @@
 struct user {
 	struct sockaddr *address;
 	socklen_t addr_len;
-	size_t sock;
+	int sock;
 	char nickname[NAME_MAX];
 	char pseudonyme[NAME_MAX];
 };
